@@ -7,7 +7,52 @@ A little API for querying collections of JavaScript objects.
 ```javascript
 (function () {
 
-  var root = this;
+  var root = this
+    , slice = Array.prototype.slice
+    , hasOwn = Object.prototype.hasOwnProperty;
+
+  function objectSlice() {
+    var fields = slice.call(arguments)
+      , field
+      , i = 0
+      , n = fields.length
+      , result = {};
+    while (i < n) {
+      field = fields[i];
+      i += 1;
+      if (hasOwn.call(this, field)) {
+        result[field] = this[field];
+      }
+    }
+    return result;
+  }
+
+  function extend(source) {
+    var field;
+    for (field in source) {
+      if (hasOwn.call(source, field)) {
+        this[field] = source[field];
+      }
+    }
+    return this;
+  }
+
+  function cloneObject() {
+    return extend.call({}, this);
+  }
+
+  function column(field) {
+    var item
+      , i = 0
+      , n = this.length
+      , results = new Array();
+    while (i < n) {
+      item = this[i];
+      i += 1;
+      results.push(item[field]);
+    }
+    return results;
+  }
 
   function findOne(query) {
     var item
@@ -34,26 +79,12 @@ A little API for querying collections of JavaScript objects.
         results.push(item);
       }
     }
-    return results;
+    return Q(results);
   }
 
-  function objectSlice(object, fields) {
-    var field
-      , i = 0
-      , n = fields.length
-      , result = {};
-    while (i < n) {
-      field = fields[i];
-      i += 1;
-      if (object.hasOwnProperty(field)) {
-        result[field] = object[field];
-      }
-    }
-    return result;
-  }
-
-  function groupBy(fields) {
-    var item
+  function groupBy() {
+    var fields = slice.call(arguments)
+      , item
       , i = 0
       , n = this.length
       , results = new Array()
@@ -62,64 +93,58 @@ A little API for querying collections of JavaScript objects.
     while (i < n) {
       item = this[i];
       i += 1;
-      sliced = objectSlice(item, fields);
+      sliced = objectSlice.apply(item, fields);
       result = findOne.call(results, sliced);
       if (typeof result === 'undefined') {
-        sliced._group = [item];
+        sliced._group = Q([item]);
         results.push(sliced);
       } else {
         result._group.push(item);
       }
     }
-    return results;
+    return Q(results);
   }
 
-  function groupByWhere(fields, query) {
+  function reduce(query, sep) {
+    var field
+      , fieldFn
+      , sep = sep || '__'
+      , result = {};
+    for (fieldFn in query) {
+      field = fieldFn.split(sep, 1)[0];
+      if (hasOwn.call(query, fieldFn)) {
+        result[fieldFn] = query[fieldFn](column.call(this, field));
+      }
+    }
+    return result;
+  }
+
+  function mapReduce(query, sep) {
     var item
       , i = 0
       , n = this.length
-      , results = new Array()
-      , result
-      , sliced;
+      , results = [];
     while (i < n) {
       item = this[i];
       i += 1;
-      if (smartmatch(item, query)) {
-        sliced = objectSlice(item, fields);
-        result = findOne.call(results, sliced);
-        if (typeof result === 'undefined') {
-          sliced._group = [item];
-          results.push(sliced);
-        } else {
-          result._group.push(item);
-        }
-      }
+      results.push(extend.call(cloneObject.call(item), item._group.reduce(query, sep)));
     }
-    return results;
+    return Q(results);
+  }
+
+  function asQuarry() {
+    this.column = column;
+    this.findOne = findOne;
+    this.findAll = findAll;
+    this.groupBy = groupBy;
+    this.reduce = reduce;
+    this.mapReduce = mapReduce;
+    return this;
   }
 
   function Q(data) {
-    return {
-      findOne: function () {
-        return findOne.apply(data, arguments);
-      },
-      findAll: function () {
-        return findAll.apply(data, arguments);
-      },
-      groupBy: function () {
-        return groupBy.apply(data, arguments);
-      },
-      groupByWhere: function () {
-        return groupByWhere.apply(data, arguments);
-      },
-    };
+    return asQuarry.call(data.slice(0));
   }
-
-  Q.findOne = findOne;
-  Q.findAll = findAll;
-  Q.objectSlice = objectSlice;
-  Q.groupBy = groupBy;
-  Q.groupByWhere = groupByWhere;
 
   root.Q = Q;
 
