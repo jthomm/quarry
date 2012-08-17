@@ -27,18 +27,23 @@ A little API for querying collections of JavaScript objects.
     return result;
   }
 
-  function extend(source) {
-    var field;
-    for (field in source) {
-      if (hasOwn.call(source, field)) {
-        this[field] = source[field];
+  function combine() {
+    var objects = slice.call(arguments)
+      , item
+      , i = 0
+      , n = objects.length
+      , field
+      , result = {};
+    while (i < n) {
+      item = objects[i];
+      i += 1;
+      for (field in item) {
+        if (hasOwn.call(item, field)) {
+          result[field] = item[field];
+        }
       }
     }
-    return this;
-  }
-
-  function cloneObject() {
-    return extend.call({}, this);
+    return result;
   }
 
   function column(field) {
@@ -82,6 +87,21 @@ A little API for querying collections of JavaScript objects.
     return Q(results);
   }
 
+  function loseAll(query) {
+    var item
+      , i = 0
+      , n = this.length
+      , results = new Array();
+    while (i < n) {
+      item = this[i];
+      i += 1;
+      if (!smartmatch(item, query)) {
+        results.push(item);
+      }
+    }
+    return Q(results);
+  }
+
   function groupBy() {
     var fields = slice.call(arguments)
       , item
@@ -96,7 +116,7 @@ A little API for querying collections of JavaScript objects.
       sliced = objectSlice.apply(item, fields);
       result = findOne.call(results, sliced);
       if (typeof result === 'undefined') {
-        sliced._group = Q([item]);
+        sliced._group = [item];
         results.push(sliced);
       } else {
         result._group.push(item);
@@ -119,15 +139,16 @@ A little API for querying collections of JavaScript objects.
     return result;
   }
 
-  function mapReduce(query, sep) {
-    var item
+  function reduceBy(fields, query, sep) {
+    var q = groupBy.apply(this, fields)
+      , item
       , i = 0
-      , n = this.length
+      , n = q.length
       , results = [];
     while (i < n) {
-      item = this[i];
+      item = q[i];
       i += 1;
-      results.push(extend.call(cloneObject.call(item), item._group.reduce(query, sep)));
+      results.push(combine(item, reduce.call(item._group, query, sep));
     }
     return Q(results);
   }
@@ -138,7 +159,7 @@ A little API for querying collections of JavaScript objects.
     this.findAll = findAll;
     this.groupBy = groupBy;
     this.reduce = reduce;
-    this.mapReduce = mapReduce;
+    this.reduceBy = reduceBy;
     return this;
   }
 
