@@ -139,7 +139,7 @@ A little API for querying collections of JavaScript objects.
     return result;
   }
 
-  function reduceBy(fields, query, sep) {
+  function groupReduce(fields, query, sep) {
     var q = groupBy.apply(this, fields)
       , item
       , i = 0
@@ -148,7 +148,7 @@ A little API for querying collections of JavaScript objects.
     while (i < n) {
       item = q[i];
       i += 1;
-      results.push(combine(item, reduce.call(item._group, query, sep));
+      results.push(combine(item, reduce.call(item._group, query, sep)));
     }
     return Q(results);
   }
@@ -159,7 +159,7 @@ A little API for querying collections of JavaScript objects.
     this.findAll = findAll;
     this.groupBy = groupBy;
     this.reduce = reduce;
-    this.reduceBy = reduceBy;
+    this.groupReduce = groupReduce;
     return this;
   }
 
