@@ -3,12 +3,12 @@ quarry
 
 A little API for querying collections of JavaScript objects.
 
-
 ```javascript
 (function () {
 
   var root = this
     , slice = Array.prototype.slice
+    , shift = Array.prototype.shift
     , hasOwn = Object.prototype.hasOwnProperty;
 
   function objectSlice() {
@@ -72,11 +72,15 @@ A little API for querying collections of JavaScript objects.
     }
   }
 
-  function findAll(query) {
+  function findAll() {
     var item
       , i = 0
       , n = this.length
-      , results = new Array();
+      , results = new Array()
+      , query = shift.call(arguments);
+    if (typeof query === 'undefined') {
+      return Q(this);
+    }
     while (i < n) {
       item = this[i];
       i += 1;
@@ -84,18 +88,19 @@ A little API for querying collections of JavaScript objects.
         results.push(item);
       }
     }
-    return Q(results);
+    return findAll.apply(results, arguments);
   }
 
-  function loseAll(query) {
+  function find(query, limit) {
     var item
       , i = 0
       , n = this.length
-      , results = new Array();
-    while (i < n) {
+      , results = new Array()
+      , noLimit = typeof limit === 'undefined';
+    while (i < n && (noLimit || results.length < limit)) {
       item = this[i];
       i += 1;
-      if (!smartmatch(item, query)) {
+      if (smartmatch(item, query)) {
         results.push(item);
       }
     }
@@ -125,6 +130,24 @@ A little API for querying collections of JavaScript objects.
     return Q(results);
   }
 
+  function project() {
+    var fields = slice.call(arguments)
+      , item
+      , i = 0
+      , n = this.length
+      , sliced
+      , results = new Array();
+    while (i < n) {
+      item = this[i];
+      i += 1;
+      sliced = objectSlice.apply(item, fields);
+      if (typeof findOne.call(results, sliced) === 'undefined') {
+        results.push(sliced);
+      }
+    }
+    return Q(results);
+  }
+
   function reduce(query, sep) {
     var field
       , fieldFn
@@ -139,27 +162,16 @@ A little API for querying collections of JavaScript objects.
     return result;
   }
 
-  function groupReduce(fields, query, sep) {
-    var q = groupBy.apply(this, fields)
-      , item
-      , i = 0
-      , n = q.length
-      , results = [];
-    while (i < n) {
-      item = q[i];
-      i += 1;
-      results.push(combine(item, reduce.call(item._group, query, sep)));
-    }
-    return Q(results);
-  }
-
   function asQuarry() {
     this.column = column;
     this.findOne = findOne;
+    this.find = find;
+    this.project = project;
     this.findAll = findAll;
-    this.groupBy = groupBy;
-    this.reduce = reduce;
-    this.groupReduce = groupReduce;
+    //this.groupBy = groupBy;
+    //this.reduce = reduce;
+    //this.reduceBy = reduceBy;
+    //this.mapReduce = mapReduce;
     return this;
   }
 
